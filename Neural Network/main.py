@@ -111,7 +111,7 @@ def run_experiment(X, Y, hidden_neurons, hyperparams, rate, k, kfold, pipe, outs
     callbacks = None
 
     if early_stopping:
-        callbacks = [EarlyStopping(monitor='val_loss', min_delta=0.0005, patience=5, verbose=0)]
+        callbacks = [EarlyStopping(monitor='val_loss', min_delta=0.001, patience=5, verbose=0)]
 
     #Cross Validation
     for i, (train, test) in enumerate(kfold.split(X)):
@@ -142,13 +142,13 @@ def run_experiment(X, Y, hidden_neurons, hyperparams, rate, k, kfold, pipe, outs
         model = Sequential()
 
         if experiment == 4: #Dropout
-            model.add(Dropout(rate[0]))
+            model.add(Dropout(1-rate[0]))
             model.add(Dense(hidden_neurons[0], activation="relu", input_dim=X_train.shape[1]))
-            model.add(Dropout(rate[1]))
+            model.add(Dropout(1-rate[1]))
             model.add(Dense(hidden_neurons[1], activation="relu", input_dim=hidden_neurons[0]))
-            model.add(Dropout(rate[1]))
+            model.add(Dropout(1-rate[1]))
             model.add(Dense(hidden_neurons[2], activation="relu", input_dim=hidden_neurons[1]))
-            model.add(Dropout(rate[1]))
+            model.add(Dropout(1-rate[1]))
             model.add(Dense(1, activation="linear", input_dim=hidden_neurons[2]))
 
         else:
@@ -187,43 +187,12 @@ def run_experiment(X, Y, hidden_neurons, hyperparams, rate, k, kfold, pipe, outs
         scores = model.evaluate(X_test, Y_test, verbose=0)
         rmseList.append(scores[0])
         print(f"Fold: {i}\nRMSE: {scores[0]}\n")
-        
-        '''
-        #For scaled
-        predictions = model.predict(X_test, verbose=0)
-        Y_test = outscaler.inverse_transform(Y_test)
-        predictions = outscaler.scaler.inverse_transform(predictions)
-        df = pd.DataFrame({'Lower': np.floor(Y_test[:,0]), 'Upper': np.floor(Y_test[:,1]), 'Predictions': np.floor(predictions.flatten())})
-        print(f'Number of correct answers: {len(df.loc[(df["Predictions"] >= df["Lower"]) & (df["Predictions"] <= df["Upper"])])} out of {df.shape[0]}')
-        #df.to_excel(f'results/{j}_{i}.xlsx', index=False)
-        '''
-
-        '''
-        #For unscaled
-
-        predictions = model.predict(X_test, verbose=0)
-        #Y_test = outscaler.inverse_transform(Y_test)
-        #predictions = outscaler.scaler.inverse_transform(predictions)
-        Y_test = Y_test.values
-        df = pd.DataFrame({'Lower': np.floor(Y_test[:,0]), 'Upper': np.floor(Y_test[:,1]), 'Predictions': np.floor(predictions.flatten())})
-        print(f'Number of correct answers: {len(df.loc[(df["Predictions"] >= df["Lower"]) & (df["Predictions"] <= df["Upper"])])} out of {df.shape[0]}')
-        #df.to_excel(f'results/{j}_{i}.xlsx', index=False)
-        '''
 
     return rmseList, avg_loss_train/k, avg_loss_valid/k
 
 #================================================================================================================================
     
 if __name__ == "__main__":
-
-    #experiment = 0 -> hidden layer neurons 
-    #experiment = 1 -> +1 hidden layer
-    #experiment = 2 -> +2 hidden layers
-    #experiment = 3 -> momentum
-    #experiment = 4 -> dropout
-    
-    experiment = 0
-    early_stopping = False
     
     #Dataset
     #=======================================================================================================
@@ -239,17 +208,10 @@ if __name__ == "__main__":
     #=======================================================================================================
 
     #Input pipeline
-    
     pipe = Pipeline([
         ("vectorizer", TextColumnTransformer(5)),
         ("scaler", StandardScaler())
     ])
-
-    '''
-    pipe = Pipeline([
-        ("vectorizer", TextColumnTransformer(5))
-    ])
-    '''
     
     #Target scaler
     outscaler = TwoColumnScaler()
@@ -259,6 +221,15 @@ if __name__ == "__main__":
     
     #Experiment params
     #===================================================================================================================
+    #experiment = 0 -> hidden layer neurons 
+    #experiment = 1 -> +1 hidden layer
+    #experiment = 2 -> +2 hidden layers
+    #experiment = 3 -> momentum
+    #experiment = 4 -> dropout
+    
+    experiment = 4
+    early_stopping = False
+
     num_epochs = 50
 
     num_neurons = None
@@ -284,8 +255,8 @@ if __name__ == "__main__":
     elif experiment == 4:
         num_neurons = [(5, 50, 70)]
         hyperparams = [(0.001, 0.2)]
-        #rate = [(0.8, 0.5),(0.5, 0.5),(0.8, 0.2)]
-        rate = [(0.8, 0.2), (0.0, 0.0)]
+        rate = [(0.8, 0.5),(0.5, 0.5),(0.8, 0.2)] #THIS IS THE KEEP RATE
+        #rate = [(0.8, 0.5), (1.0, 1.0)]
 
     #______________________________________________________________________________________________________________
 
